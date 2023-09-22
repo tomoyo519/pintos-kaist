@@ -42,11 +42,11 @@
    - up or "V": increment the value (and wake up one waiting
    thread, if any). */
 void
-sema_init (struct semaphore *sema, unsigned value) {
+sema_init (struct semaphore *sema, unsigned value) { // 세마포어로 들어갔음.
 	ASSERT (sema != NULL);
 
 	sema->value = value;
-	list_init (&sema->waiters);
+	list_init (&sema->waiters);// 밸류 넣어주고 웨터를 초기화 하고 끝
 }
 
 /* Down or "P" operation on a semaphore.  Waits for SEMA's value
@@ -57,20 +57,27 @@ sema_init (struct semaphore *sema, unsigned value) {
    interrupts disabled, but if it sleeps then the next scheduled
    thread will probably turn interrupts back on. This is
    sema_down function. */
+
+   	//현재 러닝 중인 스레드를 블럭으로 만들어줌.
+// 세마포어밸류 = 0이면, P함수에서는 0이면 무한루프 해당 스레드가 무한 루프 돈다. 
 void
-sema_down (struct semaphore *sema) {
+sema_down (struct semaphore *sema) { //  cspp 12장에 나온 P 
 	enum intr_level old_level;
 
 	ASSERT (sema != NULL);
 	ASSERT (!intr_context ());
 
-	old_level = intr_disable ();
-	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
-		thread_block ();
+	old_level = intr_disable ();// 인터럽트 비활성화
+	while (sema->value == 0) { // value = 0일때 실행
+	//무한루프
+	//안에서 현재 실행중인 스레드 (자기 자신을 웨이트 리스트에 넣고 자기자신을 블락시킴, 해당 스레드는 블락된 상태로 되고 다른 스레드로 스케줄링이 됨. 다른거 실행된 후에 세마업 호출됨. 세마업에 가면 
+	// 언블록 시키고, 세마포어를 1 증가시킴 . 현재 블락된 스레드중에서 맨앞에 있는거 하나를 언블록으로 만들어줌. 블락된 스레드를 러닝상태로 만들어줌
+		list_push_back (&sema->waiters, &thread_current ()->elem); // 현재 러닝 중인 스레드를 맨 끝부분(웨이터리스트)에 넣고, 그 스레드를 블럭상태로 만들어. 웨이트에 들어갔으니까.
+		thread_block (); // 다른 인터럽트를 방지하기 위해서.
 	}
-	sema->value--;
-	intr_set_level (old_level);
+
+	sema->value--; 
+	intr_set_level (old_level); // 다시 인터럽트복귀...
 }
 
 /* Down or "P" operation on a semaphore, but only if the

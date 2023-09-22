@@ -9,6 +9,7 @@
 #include "threads/thread.h"
 
 /* See [8254] for hardware details of the 8254 timer chip. */
+//원하는 빈도로 타이머 설정하기
 
 #if TIMER_FREQ < 19
 #error 8254 timer requires TIMER_FREQ >= 19
@@ -36,9 +37,13 @@ void
 timer_init (void) {
 	/* 8254 input frequency divided by TIMER_FREQ, rounded to
 	   nearest. */
+
+	   //인터럽트 되는 코드. 하드웨어 적인 코드. 그래서 어셈블리어로 되어있나 ?
 	uint16_t count = (1193180 + TIMER_FREQ / 2) / TIMER_FREQ;
 
-	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */
+// 0x43 = 타이머 깨우기.
+// PIT (가상의 타이머) 를 초기화하는것.
+	outb (0x43, 0x34);    /* CW: counter 0, LSB then MSB, mode 2, binary. */ 
 	outb (0x40, count & 0xff);
 	outb (0x40, count >> 8);
 
@@ -84,17 +89,17 @@ timer_ticks (void) {
    should be a value once returned by timer_ticks(). */
 int64_t
 timer_elapsed (int64_t then) {
-	return timer_ticks () - then;
+	return timer_ticks () - then; // 현재의 틱스 - start(인자로 들어오는것)
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks ();
+	int64_t start = timer_ticks (); // 현재 틱스. 1초에 5틱이다. 커서 깜빡. cpu점유할수있는 시간.
 
-	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+	ASSERT (intr_get_level () == INTR_ON); // 인터럽트 활성화 상태인가? 그래야 일드가 가능함.
+	while (timer_elapsed (start) < ticks) // timer_elapsed (start) start로부터 시간이 얼마나 지났냐, 처음엔 timer_elapsed (start) 는 0에 가깝다.
+		thread_yield (); // 양보를 하게되면 쓰레드가 어느정도 시간을 쓰겠지? 러닝중인 쓰레드가 레디큐로 간다.
 }
 
 /* Suspends execution for approximately MS milliseconds. */

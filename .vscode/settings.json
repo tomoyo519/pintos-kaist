@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "round.h": "c"
+    }
+    "editor.tokenColorCustomizations": {
+    "comments": "#8255ff"
+},
+}

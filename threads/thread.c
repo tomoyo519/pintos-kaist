@@ -152,13 +152,13 @@ thread_tick (void) {
 
 	/* Update statistics. */
 	if (t == idle_thread)
-		idle_ticks++;
+		idle_ticks++; //맨처음 스레드 생성햇을때 가장 먼저 생성된것. 아이들 = 스ㄹㅔ드 = 공회전
 #ifdef USERPROG
 	else if (t->pml4 != NULL)
 		user_ticks++;
 #endif
 	else
-		kernel_ticks++;
+		kernel_ticks++; //main
 
 	/* Enforce preemption. */
 	if (++thread_ticks >= TIME_SLICE)

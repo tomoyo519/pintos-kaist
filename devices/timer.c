@@ -98,6 +98,9 @@ timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks (); // 현재 틱스. 1초에 5틱이다. 커서 깜빡. cpu점유할수있는 시간.
 
 	ASSERT (intr_get_level () == INTR_ON); // 인터럽트 활성화 상태인가? 그래야 일드가 가능함.
+	// while 문을 삭제하고, readyque에 들어가기전에 blocked list를 만들어서, blocked list 에 tic이 낮은 순서대로 입력되도록 해야함.
+	//tic 이 낮은 순서를 확인하려면 쓰레드 구조체에 현재 틱을 확인 할 수 있는 변수를 추가해야 함.
+	// 타이머를 만드는 이유 = 커서 깜빡이는걸 좀더 빨리...
 	while (timer_elapsed (start) < ticks) // timer_elapsed (start) start로부터 시간이 얼마나 지났냐, 처음엔 timer_elapsed (start) 는 0에 가깝다.
 		thread_yield (); // 양보를 하게되면 쓰레드가 어느정도 시간을 쓰겠지? 러닝중인 쓰레드가 레디큐로 간다.
 }

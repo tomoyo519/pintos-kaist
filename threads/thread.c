@@ -28,6 +28,9 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+// ticks에 도달하지 않은 스레드를 담을 연결 리스트 sleep_list 선언, thread_init에서 초기화
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -111,6 +114,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);// tid 생성기에 접근,, 한명만 들어올 수 있도록. 다른 스레드가 들어오지 못하도록 자물쇠는 거는것. 임계영역= 다른 스레드가 접근하면 안되는 곳. 한번에 여러 스레드가 접근하면 안되기때문에
 	list_init (&ready_list); //레디큐초기화
+	list_init (&sleep_list); // 슬립 리스트 초기화
 	list_init (&destruction_req); // 파괴요청이 들어오는 스레드들 을 집어넣는 리스트
 
 	/* Set up a thread structure for the running thread. */
@@ -319,9 +323,38 @@ thread_yield (void) { // 뺏긴다. 현재 돌고있는 쓰레드 = 선점 쓰�
 
 	old_level = intr_disable (); // 인터럽트 비활성화. 올드레벨은 이전 상태를 받아옴
 	if (curr != idle_thread) // 현재 스레드가 아이들 스레드 아닐때, 레디 중인 스레드가 없다.
-		list_push_back (&ready_list, &curr->elem);  // 레디큐에 넣는다.
+		list_push_back (&ready_list, &curr->elem);  // 레디큐에 넣는다. 
 	do_schedule (THREAD_READY);// 뺏기는 과정. 현재 러닝중인 스레들을 인자로 넣어준 것으로 바꾸고, 레드큐에 있던걸 러닝 쓰레드로 바꿔줌. 현재 러닝 스레드를 레디큐에 넣어주기 위해서 레디라는 상태로 넣어줌 . 양보당하는애가 레디 상태로 되고, 두 스케줄 함수 = 현재 러닝중인 쓰레드를 인자로 넣어준 상태로 바꾸고 레디큐에 있는것을 러닝 스레드로 바꾼다
 	intr_set_level (old_level);
+}
+
+//잠든 스레드를 sleep_list에 삽입하는 함수
+// sleep_list에 ticks가 작은 스레드가 앞부분에 위치하도록 정렬하여 삽입한다.
+void thread_sleep (int64_t wake_tick){
+	struct thread *curr = thread_current();
+	enum intr_level old_level;
+	ASSERT (!intr_context());
+	old_level = intr_disable();
+	if( curr != idle_thread){
+		//이시간에 일어나렴
+		curr -> wakeup_tick = wake_tick;
+		list_insert_ordered(&sleep_list, &curr->elem, cmp_thread_ticks, NULL);
+		//리스트 푸시백 
+		//레디리스트는 우선순위 정렬이 안되어있어서 뒤에 푸시한다.
+	}
+	// ???  현재 스레드 재우기. 오ㅐ 재워야함 ?
+	do_schedule (THREAD_BLOCKED);
+	intr_set_level(old_level);
+}
+
+void thread_wake(int64_t elapsed) {
+
+	while (!list_empty(&sleep_list) && list_entry(list_front(&sleep_list), struct thread, elem)->wakeup_tick <= elapsed) {
+			struct list_elem *front_elem = list_pop_front(&sleep_list);
+			thread_unblock(list_entry(front_elem, struct thread, elem));
+	}
+	
+
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -375,7 +408,6 @@ thread_get_recent_cpu (void) {
 static void
 idle (void *idle_started_ UNUSED) {
 	struct semaphore *idle_started = idle_started_;
-
 	idle_thread = thread_current ();
 	sema_up (idle_started); //
 
@@ -606,4 +638,10 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+bool cmp_thread_ticks(struct list_elem *a_ ,struct list_elem *b_, void *aux UNUSED){
+	const struct thread *a = list_entry(a_, struct thread, elem);
+	const struct thread *b = list_entry(b_, struct thread, elem);
+	return(a->wakeup_tick < b->wakeup_tick);
 }

@@ -3,6 +3,6 @@
         "round.h": "c"
     }
     "editor.tokenColorCustomizations": {
-    "comments": "#8255ff"
+    "comments": "#9974ff"
 },
 }

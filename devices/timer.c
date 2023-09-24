@@ -92,17 +92,35 @@ timer_elapsed (int64_t then) {
 	return timer_ticks () - then; // 현재의 틱스 - start(인자로 들어오는것)
 }
 
+//스레드를 틱 타이머 동안 실행을 일시 중단
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks (); // 현재 틱스. 1초에 5틱이다. 커서 깜빡. cpu점유할수있는 시간.
-
+	//현재시간 + 잠들어있어라시간 = 일어나야하는시간
+	int64_t wake_tick = timer_ticks() + ticks; // 현재 틱스. 1초에 5틱이다. 커서 깜빡. cpu점유할수있는 시간.
 	ASSERT (intr_get_level () == INTR_ON); // 인터럽트 활성화 상태인가? 그래야 일드가 가능함.
 	// while 문을 삭제하고, readyque에 들어가기전에 blocked list를 만들어서, blocked list 에 tic이 낮은 순서대로 입력되도록 해야함.
 	//tic 이 낮은 순서를 확인하려면 쓰레드 구조체에 현재 틱을 확인 할 수 있는 변수를 추가해야 함.
 	// 타이머를 만드는 이유 = 커서 깜빡이는걸 좀더 빨리...
-	while (timer_elapsed (start) < ticks) // timer_elapsed (start) start로부터 시간이 얼마나 지났냐, 처음엔 timer_elapsed (start) 는 0에 가깝다.
-		thread_yield (); // 양보를 하게되면 쓰레드가 어느정도 시간을 쓰겠지? 러닝중인 쓰레드가 레디큐로 간다.
+
+	//busy-waiting 방식으로 구현된 기존의 코드
+	// ( 현재시간 - 시작시간 < 틱 ) 인경우, =아직 틱에 도달하지 않았으면 thread_yield() 함수를 호출해서, 다른 스레드에게 CPU를 양보한다.
+	// 스레드가 잠들면, 스케줄 대기열인 ready_list에 추가하고 있어서,
+	//아직 깰 시간이 되지않은, ticks에 도달하지않은 스레드가 깨워지는 일 발생.
+	// 🪰 **해야할일 **
+	// 잠든 스레드가 깰 시간(ticks)에 도달할때까진 ready_list에 추가하지않고, 깰시간에 도달한 경우에만 ready_list에 추가하는 방식으로
+	//아직 ticks에 도달하지 않은 쓰레드가 꺠워지는 일은 없도록 만들기 
+	// while (timer_elapsed (start) < ticks) // timer_elapsed (start) start로부터 시간이 얼마나 지났냐, 처음엔 timer_elapsed (start) 는 0에 가깝다.
+		// thread_yield (); // 잠든 스레드가 ready-list에 삽입된다.
+	//block list로 빼기
+	//block 함수
+
+	//틱이란 = 일정 시간 간격으로 발생하는 시스템의 기본적인 시간 단위
+	//운영체제는 이러한 틱을 사용해서 시스템 상태를 유지하고 다양한 작업을 스케줄링 한다.
+	// 사용하는 이유 = 운영체제가 특정 작업을 실행하기 위해 기다리는 시간을 정확히 계산할 수 있다.
+	// 틱 단위로 시간을 추적함으로써 시스템의 부하를 줄이고 일관성 유지
+	// 틱을 사용해서 CPU 사용률을 조절할 수 있다. - 틱의 간격을 더 작게 조정하면, 시스템은 더 자주 인터럽트를 처리하여 작업을 스케줄링 할 수 있게 된다.
+	thread_sleep(wake_tick);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -133,7 +151,8 @@ timer_print_stats (void) {
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
-	thread_tick ();
+	thread_tick();
+	thread_wake(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

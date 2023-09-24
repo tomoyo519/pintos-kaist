@@ -92,6 +92,7 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int64_t wakeup_tick; // 일어날 시각 추가;
 	// 현재 틱을 확인하는 변수를 추가해야됨.
 	// tic++ 되는게 thread_tick 뭐가 실행될때마다 틱이 올라감.
 	// 레디큐, 블락드에는 틱이 안올라감
@@ -146,6 +147,7 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+void thread_sleep (int64_t ticks);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
@@ -154,7 +156,13 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+void thread_wake(int64_t ticks);
 
 void do_iret (struct intr_frame *tf);
 
+// 일어날 시간이 이른 스레드가 앞부분에 위치하도록 정렬할 때 사용할 정렬 함수를 새로 선언한다.
+void sort_thread_ticks();
+
+// 두 스레드의 wakeup_ticks를 비교해서 작으면 true를 반환하는 함수
+bool cmp_thread_ticks(struct list_elem *a_ ,struct list_elem *b_, void *aux UNUSED);
 #endif /* threads/thread.h */

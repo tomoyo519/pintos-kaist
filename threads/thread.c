@@ -345,7 +345,8 @@ thread_yield (void) { // 뺏긴다. 현재 돌고있는 쓰레드 = 선점 쓰�
 
 	old_level = intr_disable (); // 인터럽트 비활성화. 올드레벨은 이전 상태를 받아옴
 	if (curr != idle_thread) // 현재 스레드가 아이들 스레드 아닐때, 레디 중인 스레드가 없다.
-		list_push_back (&ready_list, &curr->elem);  // 레디큐에 넣는다. 
+		// list_push_back (&ready_list, &curr->elem);  // 레디큐에 넣는다. 
+		list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);
 	do_schedule (THREAD_READY);// 뺏기는 과정. 현재 러닝중인 스레들을 인자로 넣어준 것으로 바꾸고, 레드큐에 있던걸 러닝 쓰레드로 바꿔줌. 현재 러닝 스레드를 레디큐에 넣어주기 위해서 레디라는 상태로 넣어줌 . 양보당하는애가 레디 상태로 되고, 두 스케줄 함수 = 현재 러닝중인 쓰레드를 인자로 넣어준 상태로 바꾸고 레디큐에 있는것을 러닝 스레드로 바꾼다
 	intr_set_level (old_level);
 }
@@ -494,6 +495,8 @@ init_thread (struct thread *t, const char *name, int priority) {
    empty.  (If the running thread can continue running, then it
    will be in the run queue.)  If the run queue is empty, return
    idle_thread. */
+   // 현재 핀토스는 ready list에 push 는 맨 뒤에, pop은 맨앞에서 하는 round-robin 형식
+   // 쓰레드간의 우선순위 없이 REAdy_list에  들어온 순서대로 실행함.
 static struct thread *
 next_thread_to_run (void) {
 	if (list_empty (&ready_list))
@@ -675,7 +678,7 @@ bool cmp_thread_ticks(struct list_elem *a_ ,struct list_elem *b_, void *aux UNUS
 	const struct thread *b = list_entry(b_, struct thread, elem);
 	return(a->wakeup_tick < b->wakeup_tick);
 }
-// todo: 	부등호 방향 ???
+// 우선순위가 높은것이 먼저와야 하기 때문에.
 bool cmp_priority(struct list_elem *a_, struct list_elem *b_ , void *aux UNUSED){
 	const struct thread *a = list_entry(a_, struct thread, elem );
 	const struct thread *b = list_entry(b_, struct thread, elem);

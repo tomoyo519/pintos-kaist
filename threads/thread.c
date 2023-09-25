@@ -31,6 +31,9 @@ static struct list ready_list;
 // ticks에 도달하지 않은 스레드를 담을 연결 리스트 sleep_list 선언, thread_init에서 초기화
 static struct list sleep_list;
 
+//lock 을 해야하는 list ? 
+static struct list wait_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -49,6 +52,10 @@ static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
 
 /* Scheduling. */
+// 프로세스가 cpu를 할당받아 실행하는 시간의 단위.
+// 각 프로세스가 일정한 시간 동안(time slice)만 cpu를 점유하고, 그 시간이 지나면 다음 프로세스에게
+//cpu를 넘겨주게 됨. 모든 프로세스가 공정하게 CPU시간을 할당받을 수 있음.
+// 각 작업에 할당되는 시간 단위
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
@@ -65,6 +72,7 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
+
 
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
@@ -167,6 +175,7 @@ thread_tick (void) {
 	/* Enforce preemption. */
 	if (++thread_ticks >= TIME_SLICE)
 		intr_yield_on_return ();
+
 }
 
 /* Prints thread statistics. */
@@ -224,7 +233,19 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t); // 블록을 해제한다 = 레디큐에 넣어준다.
-
+	// priority 순서대로.. 정렬하는 과정 필요
+	// 현재 실행중인 스레드와, 새로 삽입된 스레드의 우선순위를 비교한다.
+	// 새로 들어오는 스레드의 우선순위가 더 높으면 CPU를 양보한다.
+	
+	//running thread 와 ready_list 의 가장 앞 thread 의 priority 를 비교하고, 만약 ready_list 의 스레드가 더 높은 priority 를 가진다면
+	// thread_yield () 를 실행하여 CPU 점유권을 넘겨주는 함수를 만들었다. 이 함수를 thread_create() 와 thread_set_priority() 에 추가하여 준다.
+	//f(!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
+	if(!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority){
+		thread_yield();	
+		// todo : Schedule 해줘야 하는거 아닌가...?
+		// schedule();	
+	}
+	 
 	return tid;
 }
 
@@ -259,7 +280,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable (); // 인터럽트 비활성화 시키기. 
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	// list_push_back (&ready_list, &t->elem);
+	list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY; // 레디 상태로 만들어주기.
 	intr_set_level (old_level); // 이전 상태로 만들어줌.
 }
@@ -360,7 +382,15 @@ void thread_wake(int64_t elapsed) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
+	//set priority of the current thread;
+	// priority change.. 
 	thread_current ()->priority = new_priority;
+	if(!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority){
+		thread_yield();	
+		// todo : Schedule 해줘야 하는거 아닌가...?
+		// schedule();	
+	}
+	//reorder the ready list ???????
 }
 
 /* Returns the current thread's priority. */
@@ -644,4 +674,10 @@ bool cmp_thread_ticks(struct list_elem *a_ ,struct list_elem *b_, void *aux UNUS
 	const struct thread *a = list_entry(a_, struct thread, elem);
 	const struct thread *b = list_entry(b_, struct thread, elem);
 	return(a->wakeup_tick < b->wakeup_tick);
+}
+// todo: 	부등호 방향 ???
+bool cmp_priority(struct list_elem *a_, struct list_elem *b_ , void *aux UNUSED){
+	const struct thread *a = list_entry(a_, struct thread, elem );
+	const struct thread *b = list_entry(b_, struct thread, elem);
+	return (a->priority > b->priority);
 }

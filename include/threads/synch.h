@@ -6,7 +6,7 @@
 
 /* A counting semaphore. */
 struct semaphore {
-	unsigned value;             /* Current value. */
+	unsigned value;             /* Current value. */ // 동시에 리소스에 접근할 수 있는 스레드 갯수. 0인경우 해당 리소스가 사용중.
 	// 세마포어는 동시성 제어를 위한 프로그래밍 구조, 여러 프로세스나 스레드가 공유 자원에 접근하는것을 조정하는데 사용
 	//  waiters : 세마포어를 통해 공유 자원에 접근하려고 하지만 현재 그 자원이
 	//다른 스레드나 프로세스에 의해 사용중이라서 대기 상태인 프로세스나 스레드를 말함

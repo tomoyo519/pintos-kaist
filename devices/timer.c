@@ -11,6 +11,8 @@
 /* See [8254] for hardware details of the 8254 timer chip. */
 //원하는 빈도로 타이머 설정하기
 
+//하드웨어 타이머가 따로 있다.
+//쓰레드는 메모리만 공유함. 코드랑 힙만 공유함.
 #if TIMER_FREQ < 19
 #error 8254 timer requires TIMER_FREQ >= 19
 #endif

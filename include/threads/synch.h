@@ -7,6 +7,11 @@
 /* A counting semaphore. */
 struct semaphore {
 	unsigned value;             /* Current value. */
+	// 세마포어는 동시성 제어를 위한 프로그래밍 구조, 여러 프로세스나 스레드가 공유 자원에 접근하는것을 조정하는데 사용
+	//  waiters : 세마포어를 통해 공유 자원에 접근하려고 하지만 현재 그 자원이
+	//다른 스레드나 프로세스에 의해 사용중이라서 대기 상태인 프로세스나 스레드를 말함
+	// 이들은 세마포어값이 증가하여(공유 자원이 사용 가능해짐을 나타내는 시그널을 받으면서)
+	// 그들이 대기하고 있는 작업을 진행할 수 있게됨
 	struct list waiters;        /* List of waiting threads. */ // 연결리스트에있는 노드가 쓰레드다.
 };
 
@@ -34,6 +39,7 @@ struct condition {
 };
 
 void cond_init (struct condition *);
+
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);

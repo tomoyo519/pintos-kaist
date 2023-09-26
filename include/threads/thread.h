@@ -90,6 +90,9 @@ struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
+	// uint8_t *stack;  // saved stack pointer;
+	// thread A에서 스케줄링이 발생하면, CPu가 실행중이던 상태 즉 현재 CPU register 들에 저장된 값들을 STack 에 저장
+	// 후에 다시 Thread A가 실행되는 순간에 STack의 값들이 다시 CPU의 register로 로드되어 실행을 이어나갈 수 있다.
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
 	int64_t wakeup_tick; // 일어날 시각 추가;
@@ -109,7 +112,7 @@ struct thread {
 	// 어 ? 나보다 낮아졋네 ? 이제 레디로 가라.
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. 레디큐에 들어가는 요소 */
-
+	int donate_list[64];
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -151,6 +154,7 @@ void thread_sleep (int64_t ticks);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+int thread_max_priority(struct thread*);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
@@ -165,4 +169,6 @@ void sort_thread_ticks();
 
 // 두 스레드의 wakeup_ticks를 비교해서 작으면 true를 반환하는 함수
 bool cmp_thread_ticks(struct list_elem *a_ ,struct list_elem *b_, void *aux UNUSED);
+
+bool cmp_priority(struct list_elem *a_, struct list_elem *b_ , void *aux UNUSED);
 #endif /* threads/thread.h */

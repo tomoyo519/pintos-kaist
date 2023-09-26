@@ -81,7 +81,8 @@ sema_down (struct semaphore *sema) { //  cspp 12장에 나온 P
 	// 언블록 시키고, 세마포어를 1 증가시킴 . 현재 블락된 스레드중에서 맨앞에 있는거 하나를 언블록으로 만들어줌. 블락된 스레드를 러닝상태로 만들어줌
 	// 현재 실행중인 스레드를 세마포어의 대기자 목록에 추가함 = 스레드가 대기중
 	// todo : prority 순서대로 sort 되도록 해야 한다.
-		list_push_back (&sema->waiters, &thread_current ()->elem); // 현재 러닝 중인 스레드를 맨 끝부분(웨이터리스트)에 넣고, 그 스레드를 블럭상태로 만들어. 웨이트에 들어갔으니까.
+		list_insert_ordered(&sema->waiters, &thread_current ()->elem, cmp_priority, NULL );
+		//list_push_back (&sema->waiters, &thread_current ()->elem); // 현재 러닝 중인 스레드를 맨 끝부분(웨이터리스트)에 넣고, 그 스레드를 블럭상태로 만들어. 웨이트에 들어갔으니까.
 		// 현재 스레드를 블록 상태로 만든다. 스레드 스케줄러에 의해 다른 스레드가 실행될 때까지 기다릴것임.
 		thread_block (); // 다른 인터럽트를 방지하기 위해서.
 	}
@@ -127,9 +128,23 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 	// todo: sort the waiters list in order of priority
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
+
+	struct list_elem* next_elem;
+	struct thread* next;
+
+	struct list_elem* curr_elem;
+	struct thread* curr;
+
+	if (!list_empty (&sema->waiters)) {
+		for(curr_elem = list_begin(&sema->waiters); curr_elem != list_end(&sema->waiters); curr_elem = list_next(curr_elem) ){
+			curr = list_entry(curr_elem, struct thread, elem);
+			thread_current()->donate_list[curr->priority]--;
+		}
+		next_elem = list_pop_front(&sema->waiters);
+		next = list_entry (next_elem, struct thread, elem);
+		thread_unblock (next);
+	}
+		
 	sema->value++;
 	intr_set_level (old_level);
 }
@@ -202,10 +217,19 @@ lock_init (struct lock *lock) {
    we need to sleep. */
 void
 lock_acquire (struct lock *lock) {
+
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
-
+	//내가 빨리가야됨.
+	// 홀더가 나보다 낮은애가 나보다 방해할때,
+	//기부해야됨
+	// 나의 우선순위를 홀더에게
+	//this is donation:
+	if(lock->holder){
+		// lock->holder->priority =  thread_current()->priority;
+		lock->holder->donate_list[thread_current()->priority]++;
+	}
 	sema_down (&lock->semaphore);
 	//반복문 탈출 후,
 	lock->holder = thread_current ();
@@ -243,6 +267,7 @@ lock_release (struct lock *lock) {
 
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
+	thread_yield();
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -308,7 +333,8 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	// 현재 스레드를 조건변수의 대기자 리스트에 추가함. 현재 스레드는 조건 변수의 
 	// 대기자 목록에 들어가게 되고, 조건이 충족되기 전까지 대기상태로 된다.
 	//todo: prority 순대로 들어가도록 수정하기
-	list_push_back (&cond->waiters, &waiter.elem);
+	// list_push_back (&cond->waiters, &waiter.elem);
+	list_insert_ordered(&cond->waiters, &thread_current ()->elem, cmp_priority, NULL);
 	// 현재 스레드가 소유한 락을 해제함. 다른 스레드가 락을 획득할 수 있음.
 	lock_release (lock);
 	// 스레드를 대기 상태로 만들고, 조건이 충족되기를 기다림. 

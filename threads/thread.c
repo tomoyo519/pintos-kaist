@@ -365,7 +365,7 @@ void thread_sleep (int64_t wake_tick){
 		//리스트 푸시백 
 		//레디리스트는 우선순위 정렬이 안되어있어서 뒤에 푸시한다.
 	}
-	// ???  현재 스레드 재우기. 오ㅐ 재워야함 ?
+
 	do_schedule (THREAD_BLOCKED);
 	intr_set_level(old_level);
 }
@@ -389,7 +389,7 @@ thread_set_priority (int new_priority) {
 	if(!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority){
 		thread_yield();	
 		// todo : Schedule 해줘야 하는거 아닌가...?
-		// schedule();	
+		 //schedule();	
 	}
 	//reorder the ready list ???????
 }
@@ -397,7 +397,18 @@ thread_set_priority (int new_priority) {
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) {
-	return thread_current ()->priority;
+	return thread_max_priority(thread_current ());
+}
+
+int thread_max_priority(struct thread* t) {
+	int max_donated = 0;
+
+	for (int i = 0; i < 64; i ++) {
+		if(t->donate_list[i] > 0) {
+			max_donated = i;
+		}
+	}
+	return t->priority > max_donated ? t->priority : max_donated;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -678,9 +689,11 @@ bool cmp_thread_ticks(struct list_elem *a_ ,struct list_elem *b_, void *aux UNUS
 	const struct thread *b = list_entry(b_, struct thread, elem);
 	return(a->wakeup_tick < b->wakeup_tick);
 }
+
 // 우선순위가 높은것이 먼저와야 하기 때문에.
 bool cmp_priority(struct list_elem *a_, struct list_elem *b_ , void *aux UNUSED){
 	const struct thread *a = list_entry(a_, struct thread, elem );
 	const struct thread *b = list_entry(b_, struct thread, elem);
-	return (a->priority > b->priority);
+	
+	return (thread_max_priority(a) > thread_max_priority(b));
 }

@@ -385,20 +385,13 @@ void thread_wake(int64_t elapsed)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-	// set priority of the current thread;
-	//  priority change..
-	thread_current()->priority = new_priority;
-	if (!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
-	{
-		thread_yield();
-		// todo : Schedule 해줘야 하는거 아닌가...?
-		// schedule();
-	}
-	// todo
-	// thread_comp_ready()
-	//  reorder the ready list ???????
-}
+	struct thread *curr = thread_current();
+	curr->init_priority = new_priority;
 
+	refresh_priority();
+
+	thread_comp_ready();
+}
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
 {
@@ -496,6 +489,9 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *); // 스레드의 스택포인터 설정. tf=>스위칭 정보 들어있는 구조체
 	t->priority = priority;
 	t->magic = THREAD_MAGIC; // 스택오버플로우 여부 확인
+	t->init_priority = priority;
+	t->wait_lock = NULL;
+	list_init(&t->dona);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -703,6 +699,11 @@ bool cmp_priority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED)
 	return ((a)->priority > (b)->priority);
 }
 
+bool more(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
+}
+
 /*지금 실행중인 스레드의 우선순위와 ready_list 맨 앞에 스레드우선순위를 비교하여 y*/
 //
 void thread_comp_ready()
@@ -713,5 +714,56 @@ void thread_comp_ready()
 	if (curr->priority < p && thread_current() != idle_thread)
 	{
 		thread_yield();
+	}
+}
+
+// 실질적으로 내가 가지려고 하는 Lock을 갖고 있는 스레드에게 도네이션을 한다.
+void dona_priority(void)
+{
+	struct thread *cur_t = thread_current();
+
+	for (int depth = 0; depth < 8; depth++)
+	{
+		if (!cur_t->wait_lock)
+		{
+			break;
+		}
+		struct thread *t = cur_t->wait_lock->holder;
+		t->priority = cur_t->priority;
+		cur_t = t;
+	}
+}
+
+void remove_with_lock(struct lock *lock)
+{
+	struct thread *t = thread_current();
+	struct list_elem *temp;
+	for (temp = list_begin(&t->dona); list_end(&t->dona) != temp; temp = list_next(temp))
+	{
+		struct thread *t_t = list_entry(temp, struct thread, dona_elem);
+		if (t_t->wait_lock == lock)
+		{
+			list_remove(&t_t->dona_elem);
+		}
+	}
+}
+void refresh_priority(void)
+{
+	struct thread *t = thread_current();
+
+	// 현재 스레드의 우선순위를 기부받기 전의 우선순위로 변경
+	t->priority = t->init_priority;
+
+	if (!list_empty(&t->dona))
+	{
+
+		list_sort(&t->dona, more, 0);
+
+		struct thread *temp = list_entry(list_front(&t->dona), struct thread, dona_elem);
+
+		if (temp->priority > t->priority)
+		{
+			t->priority = temp->priority;
+		}
 	}
 }

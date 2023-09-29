@@ -134,12 +134,15 @@ void sema_up(struct semaphore *sema)
 	if (!list_empty(&sema->waiters))
 	{
 		list_sort(&sema->waiters, cmp_priority, 0);
-		thread_unblock(list_entry(list_pop_front(&sema->waiters),struct thread, elem));
+		thread_unblock(list_entry(list_pop_front(&sema->waiters), struct thread, elem));
 	}
 
 	sema->value++;
-	//실행되기 전 스케줄링을 위해.
-	thread_comp_ready();
+	// 추가로 pop할때(sema_up)는 그냥 빼면 되지만 빼기 전 리스트에 있던 상태에서 우선순위 값이 바뀌는 케이스가 있기 때문에 sort를 한번 해준다.
+	// unblock() 이후 unblock된 스레드가 running 스레드보다 우선순위가 높을 수 있어 thread_comp_ready() 실행 → CPU선점
+
+	thread_yield();
+
 	intr_set_level(old_level);
 }
 
@@ -210,31 +213,28 @@ void lock_init(struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+//    락 을 획득하기 위해 호출되는 함수.
 void lock_acquire(struct lock *lock)
 {
 
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
-	// 내가 빨리가야됨.
-	//  홀더가 나보다 낮은애가 나보다 방해할때,
-	// 기부해야됨
-	//  나의 우선순위를 홀더에게
+
 	// this is donation:
+	struct thread *t = thread_current();
 	if (lock->holder)
-	{
-		// lock->holder->priority =  thread_current()->priority;
-		lock->holder->donate_list[thread_current()->priority]++;
-		for (int i = 0; i < 64; i++)
-		{
-			printf("🧶 %d:%d\n", i, lock->holder->donate_list[i]);
-		}
-		// printf("🧶 %d\n", donate_list_len);
-		// printf("🧶 %d\n", lock->holder->donate_list[thread_current()->priority]);
+	{						 // lock의 holder가 있는 경우
+		t->wait_lock = lock; // 해당 lock을 스레드의 wait_lock으로 저장
+
+		// 해당 lock을 갖고 있던 스래드의 도네이션 리스트에 t스레드를 넣는다.
+		list_insert_ordered(&lock->holder->dona, &t->dona_elem, more, 0);
+		dona_priority(); // 도네이션 시작!
 	}
+
 	sema_down(&lock->semaphore);
-	// 반복문 탈출 후,
-	lock->holder = thread_current();
+	t->wait_lock = NULL;
+	lock->holder = t;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -268,8 +268,11 @@ void lock_release(struct lock *lock)
 	ASSERT(lock_held_by_current_thread(lock));
 
 	lock->holder = NULL;
+
+	remove_with_lock(lock); // donaion 리스트에서 내 락을 원하는 스레드 삭제
+	refresh_priority();		// priority 되돌리기
+
 	sema_up(&lock->semaphore);
-	thread_yield();
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -384,3 +387,7 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 	while (!list_empty(&cond->waiters))
 		cond_signal(cond, lock);
 }
+
+// 중요 포인트는 다음과 같다.
+// lock이 release된 스레드는 원래 priority를 다시 저장 한다.만약 dona 리스트가 비어있지 않다면,
+// 우선 해당 리스트를 sort 해준다.리스트에 있으면서 priority가 변경된 케이스가 있기 때문이다.remove 되지 않은 남은 스레드에서 priority가 가장 큰(맨 앞에 리스트) 스레드와 현재 스레드의 priority를 비교하여 큰것을 현재 스레드에 할당한다.

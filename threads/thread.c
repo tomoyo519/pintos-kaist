@@ -242,7 +242,8 @@ tid_t thread_create(const char *name, int priority,
 		// todo : Schedule 해줘야 하는거 아닌가...?
 		// schedule();
 	}
-
+	// todo
+	// thread_comp_ready()
 	return tid;
 }
 
@@ -393,27 +394,15 @@ void thread_set_priority(int new_priority)
 		// todo : Schedule 해줘야 하는거 아닌가...?
 		// schedule();
 	}
-	// reorder the ready list ???????
+	// todo
+	// thread_comp_ready()
+	//  reorder the ready list ???????
 }
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
 {
-	return thread_max_priority(thread_current());
-}
-
-int thread_max_priority(struct thread *t)
-{
-	int max_donated = 0;
-
-	for (int i = 0; i < 64; i++)
-	{
-		if (t->donate_list[i] > 0)
-		{
-			max_donated = i;
-		}
-	}
-	return t->priority > max_donated ? t->priority : max_donated;
+	return (thread_current()->priority);
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -706,10 +695,23 @@ bool cmp_thread_ticks(struct list_elem *a_, struct list_elem *b_, void *aux UNUS
 	return (a->wakeup_tick < b->wakeup_tick);
 }
 
-// 우선순위가 높은것이 먼저와야 하기 때문에.
+// 앞의 것이 더 크면 true,
 bool cmp_priority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED)
 {
 	const struct thread *a = list_entry(a_, struct thread, elem);
 	const struct thread *b = list_entry(b_, struct thread, elem);
-	return (thread_max_priority(a) > thread_max_priority(b));
+	return ((a)->priority > (b)->priority);
+}
+
+/*지금 실행중인 스레드의 우선순위와 ready_list 맨 앞에 스레드우선순위를 비교하여 y*/
+//
+void thread_comp_ready()
+{
+	struct thread *curr = thread_current();
+	int p = (list_entry(list_begin(&ready_list), struct thread, elem)->priority);
+
+	if (curr->priority < p && thread_current() != idle_thread)
+	{
+		thread_yield();
+	}
 }

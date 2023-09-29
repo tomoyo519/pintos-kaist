@@ -127,28 +127,19 @@ void sema_up(struct semaphore *sema)
 	enum intr_level old_level;
 
 	ASSERT(sema != NULL);
-	// todo: sort the waiters list in order of priority
+	// todo: 추가공부 필요
+	// unblock() 이후 unblock된 스레드가 running 스레드보다 우선순위가 높을 수 있어 thread_comp_ready() 실행 → CPU선점
 	old_level = intr_disable();
-
-	struct list_elem *next_elem;
-	struct thread *next;
-
-	struct list_elem *curr_elem;
-	struct thread *curr;
 
 	if (!list_empty(&sema->waiters))
 	{
-		for (curr_elem = list_begin(&sema->waiters); curr_elem != list_end(&sema->waiters); curr_elem = list_next(curr_elem))
-		{
-			curr = list_entry(curr_elem, struct thread, elem);
-			thread_current()->donate_list[curr->priority]--;
-		}
-		next_elem = list_pop_front(&sema->waiters);
-		next = list_entry(next_elem, struct thread, elem);
-		thread_unblock(next);
+		list_sort(&sema->waiters, cmp_priority, 0);
+		thread_unblock(list_entry(list_pop_front(&sema->waiters),struct thread, elem));
 	}
 
 	sema->value++;
+	//실행되기 전 스케줄링을 위해.
+	thread_comp_ready();
 	intr_set_level(old_level);
 }
 

@@ -1,0 +1,14 @@
+FAIL
+Kernel panic in run: PANIC at ../../lib/kernel/list.c:341 in find_end_of_run(): assertion `a != NULL' failed.
+Call stack: 0x8004214169 0x8004214ee2 0x8004215409 0x8004209f7c 0x800420aa07 0x800421a7e1 0x800421796a 0x8004206677 0x80042067e1 0x800420612b
+Translation of call stack:
+0x0000008004214169: debug_panic (lib/kernel/debug.c:32)
+0x0000008004214ee2: find_end_of_run (lib/kernel/list.c:342)
+0x0000008004215409: list_sort (lib/kernel/list.c:401)
+0x0000008004209f7c: sema_up (threads/synch.c:137)
+0x000000800420aa07: cond_signal (threads/synch.c:371)
+0x000000800421a7e1: test_priority_condvar (tests/threads/priority-condvar.c:41 (discriminator 3))
+0x000000800421796a: run_test (tests/threads/tests.c:56)
+0x0000008004206677: run_task (threads/init.c:253)
+0x00000080042067e1: run_actions (threads/init.c:298)
+0x000000800420612b: main (threads/init.c:126)

@@ -1,0 +1,162 @@
+c[?7l[2J[0mSeaBIOS (version 1.15.0-1)
+
+
+iPXE (https://ipxe.org) 00:03.0 CA00 PCI2.10 PnP PMM+0138B4A0+012CB4A0 CA00
+Press Ctrl-B to configure iPXE (PCI 00:03.0)...                                                                               
+
+
+Booting from Hard Disk..Kernel command line: -q run priority-donate-nest
+0 ~ 9fc00 1
+100000 ~ 13e0000 1
+Pintos booting with: 
+	base_mem: 0x0 ~ 0x9fc00 (Usable: 639 kB)
+	ext_mem: 0x100000 ~ 0x13e0000 (Usable: 19,328 kB)
+Calibrating timer...  117,964,800 loops/s.
+Boot complete.
+Executing 'priority-donate-nest':
+(priority-donate-nest) begin
+🧶 0:0
+🧶 1:0
+🧶 2:0
+🧶 3:0
+🧶 4:0
+🧶 5:0
+🧶 6:0
+🧶 7:0
+🧶 8:0
+🧶 9:0
+🧶 10:0
+🧶 11:0
+🧶 12:0
+🧶 13:0
+🧶 14:0
+🧶 15:0
+🧶 16:0
+🧶 17:0
+🧶 18:0
+🧶 19:0
+🧶 20:0
+🧶 21:0
+🧶 22:0
+🧶 23:0
+🧶 24:0
+🧶 25:0
+🧶 26:0
+🧶 27:0
+🧶 28:0
+🧶 29:0
+🧶 30:0
+🧶 31:0
+🧶 32:1
+🧶 33:0
+🧶 34:0
+🧶 35:0
+🧶 36:0
+🧶 37:0
+🧶 38:0
+🧶 39:0
+🧶 40:0
+🧶 41:0
+🧶 42:0
+🧶 43:0
+🧶 44:0
+🧶 45:0
+🧶 46:0
+🧶 47:0
+🧶 48:0
+🧶 49:0
+🧶 50:0
+🧶 51:0
+🧶 52:0
+🧶 53:0
+🧶 54:0
+🧶 55:0
+🧶 56:0
+🧶 57:0
+🧶 58:0
+🧶 59:0
+🧶 60:0
+🧶 61:0
+🧶 62:0
+🧶 63:0
+(priority-donate-nest) Low thread should have priority 32.  Actual priority: 31.
+🧶 0:0
+🧶 1:0
+🧶 2:0
+🧶 3:0
+🧶 4:0
+🧶 5:0
+🧶 6:0
+🧶 7:0
+🧶 8:0
+🧶 9:0
+🧶 10:0
+🧶 11:0
+🧶 12:0
+🧶 13:0
+🧶 14:0
+🧶 15:0
+🧶 16:0
+🧶 17:0
+🧶 18:0
+🧶 19:0
+🧶 20:0
+🧶 21:0
+🧶 22:0
+🧶 23:0
+🧶 24:0
+🧶 25:0
+🧶 26:0
+🧶 27:0
+🧶 28:0
+🧶 29:0
+🧶 30:0
+🧶 31:0
+🧶 32:0
+🧶 33:1
+🧶 34:0
+🧶 35:0
+🧶 36:0
+🧶 37:0
+🧶 38:0
+🧶 39:0
+🧶 40:0
+🧶 41:0
+🧶 42:0
+🧶 43:0
+🧶 44:0
+🧶 45:0
+🧶 46:0
+🧶 47:0
+🧶 48:0
+🧶 49:0
+🧶 50:0
+🧶 51:0
+🧶 52:0
+🧶 53:0
+🧶 54:0
+🧶 55:0
+🧶 56:0
+🧶 57:0
+🧶 58:0
+🧶 59:0
+🧶 60:0
+🧶 61:0
+🧶 62:0
+🧶 63:0
+(priority-donate-nest) Low thread should have priority 33.  Actual priority: 31.
+(priority-donate-nest) Medium thread should have priority 33.  Actual priority: 32.
+(priority-donate-nest) Medium thread got the lock.
+(priority-donate-nest) High thread got the lock.
+(priority-donate-nest) High thread finished.
+(priority-donate-nest) High thread should have just finished.
+(priority-donate-nest) Middle thread finished.
+(priority-donate-nest) Medium thread should just have finished.
+(priority-donate-nest) Low thread should have priority 31.  Actual priority: 31.
+(priority-donate-nest) end
+Execution of 'priority-donate-nest' complete.
+Timer: 63 ticks
+Thread: 0 idle ticks, 64 kernel ticks, 0 user ticks
+Console: 2362 characters output
+Keyboard: 0 keys pressed
+Powering off...

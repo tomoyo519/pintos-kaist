@@ -221,17 +221,17 @@ void lock_acquire(struct lock *lock)
 	// 기부해야됨
 	//  나의 우선순위를 홀더에게
 	// this is donation:
-	if (lock->holder)
-	{
-		// lock->holder->priority =  thread_current()->priority;
-		lock->holder->donate_list[thread_current()->priority]++;
-		for (int i = 0; i < 64; i++)
-		{
-			printf("🧶 %d:%d\n", i, lock->holder->donate_list[i]);
-		}
-		// printf("🧶 %d\n", donate_list_len);
-		// printf("🧶 %d\n", lock->holder->donate_list[thread_current()->priority]);
-	}
+	// if (lock->holder)
+	// {
+	// 	// lock->holder->priority =  thread_current()->priority;
+	// 	lock->holder->donate_list[thread_current()->priority]++;
+	// 	for (int i = 0; i < 64; i++)
+	// 	{
+	// 		printf("🧶 %d:%d\n", i, lock->holder->donate_list[i]);
+	// 	}
+	// 	// printf("🧶 %d\n", donate_list_len);
+	// 	// printf("🧶 %d\n", lock->holder->donate_list[thread_current()->priority]);
+	// }
 	sema_down(&lock->semaphore);
 	// 반복문 탈출 후,
 	lock->holder = thread_current();

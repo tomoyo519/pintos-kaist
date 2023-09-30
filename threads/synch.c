@@ -196,7 +196,25 @@ void lock_acquire(struct lock *lock)
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
 
+	// lock을 점유하고 있는 스레드와 요청 하는 스레드의 우선순위를 비교하여
+	// priority donation을 수행하도록 수정
+	struct thread *curr = thread_current();
+	// 이미 점유중일 락이라면,
+	//  lock holder의 donors list에 현재 스레드 추가
+
+	// 현재 스레드의 wait_on_lock으로 지정
+	//  현재 스레드의 priority를 lock holder에게 상속해줌
+	if (lock->holder != NULL)
+	{
+		list_insert_ordered(&lock->holder->donators, &lock->holder->d_elem, cmp_priority, NULL);
+		curr->wait_on_lock = lock;
+		donate_priority();
+
+		// 현재 스레드가 원하는 락을 가진 holder에게 현재 스레드의 priority 상속
+	}
+
 	sema_down(&lock->semaphore);
+	curr->wait_on_lock = NULL; // lock을 점유했으니 wait_on_lock에서 제거
 	lock->holder = thread_current();
 }
 
@@ -231,6 +249,9 @@ void lock_release(struct lock *lock)
 	ASSERT(lock_held_by_current_thread(lock));
 
 	lock->holder = NULL;
+
+	remove_with_lock(lock);
+	refresh_priority();
 	sema_up(&lock->semaphore);
 }
 
@@ -315,7 +336,7 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED)
 	if (!list_empty(&cond->waiters))
 	{
 
-		list_sort(&cond->waiters, cmp_sem_priority, NULL);
+		// list_sort(&cond->waiters, cmp_sem_priority, NULL);
 		sema_up(&list_entry(list_pop_front(&cond->waiters),
 							struct semaphore_elem, elem)
 					 ->semaphore);
@@ -338,6 +359,9 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 }
 // todo ???
 /* 두개의 세마포어가 가지고있는 스레드들의 최대 우선순위를 비교 */
+
+/*스레드의 우선순위가 변경되었을때, donations을 고려하여 우선순위를 다시 결정하는 함수*/
+
 bool cmp_sem_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
 	struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);

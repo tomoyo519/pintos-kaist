@@ -381,7 +381,10 @@ void thread_wake(int64_t elapsed)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-	thread_current()->priority = new_priority;
+
+	thread_current()->init_priority = new_priority;
+	refresh_priority();
+
 	test_max_priority();
 }
 
@@ -482,6 +485,9 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *); // 스레드의 스택포인터 설정. tf=>스위칭 정보 들어있는 구조체
 	t->priority = priority;
 	t->magic = THREAD_MAGIC; // 스택오버플로우 여부 확인
+	t->init_priority = priority;
+	t->wait_on_lock = NULL;
+	list_init(&t->donators);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -699,5 +705,57 @@ void test_max_priority(void)
 	if (curr->priority < list_entry(list_max(&ready_list, cmp_priority, NULL), struct thread, elem)->priority)
 	{
 		thread_yield();
+	}
+}
+
+// todo 다시써보기.
+void refresh_priority(void)
+{
+	struct thread *curr = thread_current();
+	curr->priority = curr->init_priority;
+	if (!list_empty(&curr->donators))
+	{
+		list_sort(&curr->donators, cmp_priority, NULL);
+		struct thread *tmp = list_entry(list_front(&curr->donators), struct thread, d_elem);
+		if (tmp->priority > curr->priority)
+		{
+			curr->priority = tmp->priority;
+		}
+	}
+}
+
+// todo
+// 현재 스레드의 우선순위 기부 리스트(dona)에서 특정 락(lock)을 대기하고 있는 모든 스레드를 제거하는 역할을 합니다.
+void remove_with_lock(struct lock *lock)
+{
+	struct thread *t = thread_current();
+	struct list_elem *temp;
+	for (temp = list_begin(&t->donators); list_end(&t->donators) != temp; temp = list_next(temp))
+	{
+		struct thread *t_t = list_entry(temp, struct thread, d_elem);
+		if (t_t->wait_on_lock == lock)
+		{
+			list_remove(&t_t->d_elem);
+		}
+	}
+}
+void donate_priority(void)
+{
+
+	struct thread *curr = thread_current(); // 검사중인 스레드
+	struct thread *holder;					// curr이 원하는 lock을 가진 스레드
+
+	for (int depth = 0; depth < 8; depth++)
+	{
+		if (curr->wait_on_lock == NULL)
+		{
+			break;
+		}
+		// 현재 스레드가 대기하고 있는 락을 점유하고 있는 스레드.
+		holder = curr->wait_on_lock->holder;
+		holder->priority = curr->priority;
+		// 우선순위 기부를 중첩된 상태로 처리하기 위해서.
+
+		curr = holder;
 	}
 }

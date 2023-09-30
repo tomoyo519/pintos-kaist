@@ -236,12 +236,7 @@ tid_t thread_create(const char *name, int priority,
 	// running thread 와 ready_list 의 가장 앞 thread 의 priority 를 비교하고, 만약 ready_list 의 스레드가 더 높은 priority 를 가진다면
 	//  thread_yield () 를 실행하여 CPU 점유권을 넘겨주는 함수를 만들었다. 이 함수를 thread_create() 와 thread_set_priority() 에 추가하여 준다.
 	// f(!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
-	if (!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
-	{
-		thread_yield();
-		// todo : Schedule 해줘야 하는거 아닌가...?
-		// schedule();
-	}
+	test_max_priority();
 
 	return tid;
 }
@@ -278,6 +273,7 @@ void thread_unblock(struct thread *t)
 	old_level = intr_disable(); // 인터럽트 비활성화 시키기. 다른 인터럽트가 발생하면 안되므로.
 	ASSERT(t->status == THREAD_BLOCKED);
 	// list_push_back (&ready_list, &t->elem);
+	// 언블록할때 readylist에 넣을때는 우선순위 순으로 넣어야 한다.
 	list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY;  // 레디 상태로 만들어주기.
 	intr_set_level(old_level); // 이전 상태로 만들어줌.
@@ -334,8 +330,9 @@ void thread_exit(void)
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
+// cpu를 양보하는 함수
 void thread_yield(void)
-{ // 뺏긴다. 현재 돌고있는 쓰레드 = 선점 쓰레드. 뺏기는 과정 = 두 스케줄
+{
 	struct thread *curr = thread_current();
 	enum intr_level old_level;
 	// 외부 인터럽트  = 하드 인터럽트
@@ -384,36 +381,14 @@ void thread_wake(int64_t elapsed)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-	// set priority of the current thread;
-	//  priority change..
 	thread_current()->priority = new_priority;
-	if (!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
-	{
-		thread_yield();
-		// todo : Schedule 해줘야 하는거 아닌가...?
-		// schedule();
-	}
-	// reorder the ready list ???????
+	test_max_priority();
 }
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
 {
-	return thread_max_priority(thread_current());
-}
-
-int thread_max_priority(struct thread *t)
-{
-	int max_donated = 0;
-
-	for (int i = 0; i < 64; i++)
-	{
-		if (t->donate_list[i] > 0)
-		{
-			max_donated = i;
-		}
-	}
-	return t->priority > max_donated ? t->priority : max_donated;
+	return (thread_current())->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -642,6 +617,7 @@ do_schedule(int status)
 	schedule();
 }
 
+// cpu의 제어권을 넘기는데 사용하는 함수
 static void
 schedule(void)
 {
@@ -711,5 +687,17 @@ bool cmp_priority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED)
 {
 	const struct thread *a = list_entry(a_, struct thread, elem);
 	const struct thread *b = list_entry(b_, struct thread, elem);
-	return (thread_max_priority(a) > thread_max_priority(b));
+	return ((a)->priority > (b)->priority);
+}
+
+// 현재 수행중인 스레드와 가장 높은 우선순위의 스레드를 우선비교하여 스케줄링
+void test_max_priority(void)
+{
+	struct thread *curr = thread_current();
+	// 우선순위는 매번 변하기 때문에 넣거나 뺄때 sort를 해야함.
+	list_sort(&ready_list, cmp_priority, NULL);
+	if (curr->priority < list_entry(list_max(&ready_list, cmp_priority, NULL), struct thread, elem)->priority)
+	{
+		thread_yield();
+	}
 }

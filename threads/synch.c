@@ -206,7 +206,7 @@ void lock_acquire(struct lock *lock)
 		// donators에 추가
 
 		t->wait_on_lock = lock;
-		list_insert_ordered(&lock->holder->donators, &t->d_elem, cmp_priority, NULL);
+		list_insert_ordered(&lock->holder->donators, &t->d_elem, cmp_dpriority, NULL);
 		priority_donate();
 	}
 

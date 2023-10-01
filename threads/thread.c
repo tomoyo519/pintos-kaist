@@ -701,6 +701,13 @@ bool cmp_priority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED)
 	return (a->priority > b->priority);
 }
 
+bool cmp_dpriority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED)
+{
+	const struct thread *a = list_entry(a_, struct thread, d_elem);
+	const struct thread *b = list_entry(b_, struct thread, d_elem);
+	return (a->priority > b->priority);
+}
+
 // 현재 수행중인 스레드와 가장 높은 우선순위의 스레드를 우선비교하여 스케줄링
 void test_max_priority(void)
 {
@@ -730,7 +737,7 @@ void priority_donate(void)
 		struct thread *holder = curr->wait_on_lock->holder;
 		if (list_entry(list_pop_front(&holder->donators), struct thread, d_elem)->priority > holder->priority && !list_empty(&holder->donators))
 		{
-			holder->priority = list_entry(list_max(&holder->donators, cmp_priority, NULL), struct thread, d_elem)->priority;
+			holder->priority = list_entry(list_max(&holder->donators, cmp_dpriority, NULL), struct thread, d_elem)->priority;
 		}
 		else if (list_empty(&holder->donators))
 		{
@@ -765,7 +772,7 @@ void remove_with_lock(struct lock *lock)
 	}
 	else
 	{
-		curr->priority = list_entry(list_max(&lock->holder->donators, cmp_priority, NULL), struct thread, d_elem)->priority;
+		curr->priority = list_entry(list_max(&lock->holder->donators, cmp_dpriority, NULL), struct thread, d_elem)->priority;
 	}
 }
 void refresh_priority(void)
@@ -776,7 +783,7 @@ void refresh_priority(void)
 	curr->priority = curr->init_priority;
 	if (!list_empty(&curr->donators))
 	{
-		list_sort(&curr->donators, cmp_priority, NULL);
+		list_sort(&curr->donators, cmp_dpriority, NULL);
 		struct thread *tmp = list_entry(list_front(&curr->donators), struct thread, d_elem);
 		if (curr->priority < tmp->priority)
 		{

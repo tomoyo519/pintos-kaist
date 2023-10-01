@@ -35,21 +35,23 @@ void test_priority_donate_multiple(void)
      lock_acquire(&b);
 
      thread_create("a", PRI_DEFAULT + 1, a_thread_func, &a);
-     
+
      msg("Main thread should have priority %d.  Actual priority: %d.",
          PRI_DEFAULT + 1, thread_get_priority());
 
      thread_create("b", PRI_DEFAULT + 2, b_thread_func, &b);
-     
+
      msg("Main thread should have priority %d.  Actual priority: %d.",
          PRI_DEFAULT + 2, thread_get_priority());
 
      lock_release(&b);
+
      msg("Thread b should have just finished.");
      msg("Main thread should have priority %d.  Actual priority: %d.",
          PRI_DEFAULT + 1, thread_get_priority());
 
      lock_release(&a);
+
      msg("Thread a should have just finished.");
      msg("Main thread should have priority %d.  Actual priority: %d.",
          PRI_DEFAULT, thread_get_priority());

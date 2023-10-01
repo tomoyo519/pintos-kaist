@@ -173,7 +173,7 @@ void sort_thread_ticks();
 
 // 두 스레드의 wakeup_ticks를 비교해서 작으면 true를 반환하는 함수
 bool cmp_thread_ticks(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED);
-
+bool cmp_dpriority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED);
 bool cmp_priority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED);
 void priority_donate(void);
 void remove_with_lock(struct lock *lock);

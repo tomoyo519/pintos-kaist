@@ -190,14 +190,32 @@ void lock_init(struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+//    락을 획득하기 위해 호출하는 함수
 void lock_acquire(struct lock *lock)
 {
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
 
+	enum intr_level old_level = intr_disable();
+	// lock을 점유하고있는 스레드와 요청하는 스레드의 우선순위 비교하여 p donation
+	// 락이 점유 되어있는 경우, wait 해야함.
+	struct thread *t = thread_current();
+	if (lock->holder != NULL)
+	{
+		// donators에 추가
+
+		t->wait_on_lock = lock;
+		list_insert_ordered(&lock->holder->donators, &t->d_elem, cmp_priority, NULL);
+		priority_donate();
+	}
+
 	sema_down(&lock->semaphore);
-	lock->holder = thread_current();
+
+	t->wait_on_lock = NULL;
+	lock->holder = t;
+	intr_set_level(old_level);
+	// lock->holder = thread_current();
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -230,6 +248,10 @@ void lock_release(struct lock *lock)
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
 
+	// lock을 해제한 후, 현재 스레드의 대기 리스트 갱신
+	remove_with_lock(lock);
+	// priority를 donation받았을 수 있으므로 원래의 p로 초기화
+	// refresh_priority();
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
 }
@@ -250,6 +272,21 @@ struct semaphore_elem
 	struct list_elem elem;		/* List element. */
 	struct semaphore semaphore; /* This semaphore. */
 };
+
+bool cmp_sem_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
+	struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
+
+	// 세마포어 대기 큐에서 가장 높은 우선순위를 가진 스레드 찾기
+	struct thread *thread_a = list_entry(list_front(&sema_a->semaphore.waiters),
+										 struct thread, elem);
+	struct thread *thread_b = list_entry(list_front(&sema_b->semaphore.waiters),
+										 struct thread, elem);
+
+	// 두 스레드의 우선순위 비교
+	return (thread_a->priority > thread_b->priority);
+}
 
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
@@ -338,17 +375,3 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 }
 // todo ???
 /* 두개의 세마포어가 가지고있는 스레드들의 최대 우선순위를 비교 */
-bool cmp_sem_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
-{
-	struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
-	struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
-
-	// 세마포어 대기 큐에서 가장 높은 우선순위를 가진 스레드 찾기
-	struct thread *thread_a = list_entry(list_front(&sema_a->semaphore.waiters),
-										 struct thread, elem);
-	struct thread *thread_b = list_entry(list_front(&sema_b->semaphore.waiters),
-										 struct thread, elem);
-
-	// 두 스레드의 우선순위 비교
-	return (thread_a->priority > thread_b->priority);
-}

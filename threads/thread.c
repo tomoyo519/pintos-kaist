@@ -381,7 +381,14 @@ void thread_wake(int64_t elapsed)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-	thread_current()->priority = new_priority;
+
+	thread_current()->init_priority = new_priority;
+	refresh_priority();
+	// if (thread_current()->wait_on_lock != NULL)
+	// {
+
+	// 	priority_donate();
+	// }
 	test_max_priority();
 }
 
@@ -482,6 +489,10 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *); // 스레드의 스택포인터 설정. tf=>스위칭 정보 들어있는 구조체
 	t->priority = priority;
 	t->magic = THREAD_MAGIC; // 스택오버플로우 여부 확인
+
+	t->init_priority = priority;
+	t->wait_on_lock = NULL;
+	list_init(&t->donators);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -687,7 +698,7 @@ bool cmp_priority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED)
 {
 	const struct thread *a = list_entry(a_, struct thread, elem);
 	const struct thread *b = list_entry(b_, struct thread, elem);
-	return ((a)->priority > (b)->priority);
+	return (a->priority > b->priority);
 }
 
 // 현재 수행중인 스레드와 가장 높은 우선순위의 스레드를 우선비교하여 스케줄링
@@ -695,9 +706,81 @@ void test_max_priority(void)
 {
 	struct thread *curr = thread_current();
 	// 우선순위는 매번 변하기 때문에 넣거나 뺄때 sort를 해야함.
-	list_sort(&ready_list, cmp_priority, NULL);
-	if (curr->priority < list_entry(list_max(&ready_list, cmp_priority, NULL), struct thread, elem)->priority)
+	// list_sort(&ready_list, cmp_priority, NULL);
+	if (curr->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority)
 	{
 		thread_yield();
+	}
+}
+
+// 내가 가지려고 하는 락을 가진 스레드에게 도네이션을 한다.
+void priority_donate(void)
+{
+	struct thread *curr = thread_current();
+
+	// 현재 쓰레드가 기다리고 있는 lock과 연결된 모든 쓰레드들을 순회하며
+	//  현재 쓰레드의 우선순위를 Lock을 보유하고있는 쓰레드에게 기부
+	for (int depth = 0; depth < 8; depth++)
+	{
+		if (!curr->wait_on_lock)
+		{
+			break;
+		}
+
+		struct thread *holder = curr->wait_on_lock->holder;
+		if (list_entry(list_pop_front(&holder->donators), struct thread, d_elem)->priority > holder->priority && !list_empty(&holder->donators))
+		{
+			holder->priority = list_entry(list_max(&holder->donators, cmp_priority, NULL), struct thread, d_elem)->priority;
+		}
+		else if (list_empty(&holder->donators))
+		{
+			holder->priority = curr->priority;
+		}
+		curr = holder;
+	}
+}
+
+/* 현재 스레드의 donators 리스트에서 특정 락을 대기하고 있던 모든 스레드를 제거함. */
+// 이 락을 대기하던 스레드들이 실행 가능 상태로 전환되어야 하므로,
+// 현재 스레드의 donators 에서 제거하는 작업
+void remove_with_lock(struct lock *lock)
+{
+	// lock을 해지했을때 waiters list에서 해당 엔트리를 삭제하기 위함.
+	struct thread *curr = thread_current();
+	struct list_elem *temp;
+
+	for (temp = list_begin(&lock->holder->donators); temp != list_end(&lock->holder->donators); temp = list_next(temp))
+	{
+		struct thread *d_t = list_entry(temp, struct thread, d_elem);
+		if (d_t->wait_on_lock == lock)
+		{
+			// 특정 락이 해제 되었을때, 그 락떄문에 기다리던 모든 스레드들이 자신의
+			// 우선순위 기부자리스트(donators)에서 제거되도록 하는데 사용
+			list_remove(&d_t->d_elem);
+		}
+	}
+	if (list_empty(&lock->holder->donators))
+	{
+		curr->priority = curr->init_priority;
+	}
+	else
+	{
+		curr->priority = list_entry(list_max(&lock->holder->donators, cmp_priority, NULL), struct thread, d_elem)->priority;
+	}
+}
+void refresh_priority(void)
+{
+	// 스레드의 우선순위가 변경되었을때 donation을 고려하여 우선순위를 다시 결정
+	// 현제스레드의 우선순위를 기부 받기 전의 우선순위로 변경
+	struct thread *curr = thread_current();
+	curr->priority = curr->init_priority;
+	if (!list_empty(&curr->donators))
+	{
+		list_sort(&curr->donators, cmp_priority, NULL);
+		struct thread *tmp = list_entry(list_front(&curr->donators), struct thread, d_elem);
+		if (curr->priority < tmp->priority)
+		{
+			curr->priority = tmp->priority;
+		}
 	}
 }

@@ -3,4 +3,5 @@ make clean
 make
 cd build
 source ../../activate
-pintos -- -q run priority-donate-nest
+# pintos --gdb -- -q run priority-donate-multiple
+pintos -- -q run priority-donate-multiple

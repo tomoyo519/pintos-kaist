@@ -207,7 +207,7 @@ void lock_acquire(struct lock *lock)
 
 		t->wait_on_lock = lock;
 		list_insert_ordered(&lock->holder->donators, &t->d_elem, cmp_dpriority, NULL);
-		priority_donate();
+		priority_donate(lock);
 	}
 
 	sema_down(&lock->semaphore);

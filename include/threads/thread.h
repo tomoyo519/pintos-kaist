@@ -175,7 +175,7 @@ void sort_thread_ticks();
 bool cmp_thread_ticks(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED);
 bool cmp_dpriority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED);
 bool cmp_priority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED);
-void priority_donate(void);
+void priority_donate(struct lock *lock);
 void remove_with_lock(struct lock *lock);
-void refresh_priority(void);
+void refresh_priority(struct lock *lock);
 #endif /* threads/thread.h */

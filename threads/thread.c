@@ -272,7 +272,6 @@ void thread_unblock(struct thread *t)
 
 	old_level = intr_disable(); // 인터럽트 비활성화 시키기. 다른 인터럽트가 발생하면 안되므로.
 	ASSERT(t->status == THREAD_BLOCKED);
-	// list_push_back (&ready_list, &t->elem);
 	// 언블록할때 readylist에 넣을때는 우선순위 순으로 넣어야 한다.
 	list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY;  // 레디 상태로 만들어주기.
@@ -368,9 +367,9 @@ void thread_sleep(int64_t wake_tick)
 	intr_set_level(old_level);
 }
 
-void thread_wake(int64_t elapsed)
+void thread_wake(int64_t elapsed) // 입력받는것 = 현재시간;
 {
-
+	// 스레드의 일어난 시간이 지금 시간보다 작거나 같으면,
 	while (!list_empty(&sleep_list) && list_entry(list_front(&sleep_list), struct thread, elem)->wakeup_tick <= elapsed)
 	{
 		struct list_elem *front_elem = list_pop_front(&sleep_list);
@@ -392,12 +391,6 @@ void thread_set_priority(int new_priority)
 		curr->priority = list_entry(list_max(&curr->donators, cmp_dpriority, NULL), struct thread, d_elem)->priority;
 		curr->init_priority = new_priority;
 	}
-	// refresh_priority();
-	// if (thread_current()->wait_on_lock != NULL)
-	// {
-
-	// 	priority_donate();
-	// }
 	test_max_priority();
 }
 
@@ -721,9 +714,9 @@ bool cmp_dpriority(struct list_elem *a_, struct list_elem *b_, void *aux UNUSED)
 void test_max_priority(void)
 {
 	struct thread *curr = thread_current();
-	// 우선순위는 매번 변하기 때문에 넣거나 뺄때 sort를 해야함.
-	// list_sort(&ready_list, cmp_priority, NULL);
-	if (curr->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority)
+	// ready list의 가장
+	list_sort(&ready_list, cmp_priority, NULL);
+	if (!list_empty(&ready_list) && curr->priority < list_entry(list_begin(&ready_list), struct thread, elem)->priority)
 	{
 		thread_yield();
 	}
@@ -732,36 +725,28 @@ void test_max_priority(void)
 // 내가 가지려고 하는 락을 가진 스레드에게 도네이션을 한다.
 void priority_donate(struct lock *lock)
 {
-	// if(lock->holder->priority < thread_current()->priority){
-
-	// struct lock *temp = lock;
-	// struct thread *temp_t = thread_current();
-
-	// while(temp !=NULL){
-	// 	if(list_empty(&temp->holder->donators)){
-	// 		list_push_back(&temp->holder->donators, &temp_t->d_elem); //donators 리스트에 현재 리스트 추가
-	// 		temp->holder->priority = temp_t->priority;
-	// 	}
-	// }
 	// 현재 쓰레드가 기다리고 있는 lock과 연결된 모든 쓰레드들을 순회하며
 	//  현재 쓰레드의 우선순위를 Lock을 보유하고있는 쓰레드에게 기부
 	struct thread *curr = thread_current();
+	// 일단 나보다 우선순위가 높다는게 없다는것이 전제임.
 	for (int depth = 0; depth < 8; depth++)
 	{
 		if (!curr->wait_on_lock)
 		{
 			break;
 		}
-
 		struct thread *holder = curr->wait_on_lock->holder;
-		holder->priority = list_entry(list_max(&holder->donators, cmp_dpriority, NULL), struct thread, d_elem)->priority;
-		holder->priority = curr->priority;
-
 		if (list_empty(&holder->donators))
 		{
-			// holder->priority = curr->priority;
 			curr->priority = curr->init_priority;
 		}
+		//이 함수는 lock acquire 할때 실행됨. 언제 락 획득을 요청하냐,
+		// 내가 원하는 락이 점유되었을때
+		// lock acquire 하고 줄을 서야할때, 기다리는건 나 하나임.
+		// 현재 running 중인 쓰레드는 p가 무조건 제일 높은 쓰레드이다.
+		// 왜 이코드 안됨?
+		// holder->priority = list_entry(list_max(&holder->donators, cmp_dpriority, NULL), struct thread, d_elem)->priority;
+		holder->priority = curr->priority;
 		curr = holder;
 	}
 }

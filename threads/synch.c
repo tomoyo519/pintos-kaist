@@ -67,7 +67,6 @@ void sema_down(struct semaphore *sema)
 	old_level = intr_disable();
 	while (sema->value == 0)
 	{
-		// list_push_back(&sema->waiters, &thread_current()->elem);
 		list_insert_ordered(&sema->waiters, &thread_current()->elem, cmp_priority, NULL);
 		thread_block();
 	}
@@ -199,13 +198,15 @@ void lock_acquire(struct lock *lock)
 
 	enum intr_level old_level = intr_disable();
 	// lock을 점유하고있는 스레드와 요청하는 스레드의 우선순위 비교하여 p donation
-	// 락이 점유 되어있는 경우, wait 해야함.
+	// 락이 점유 되어있는 경우, block 해야함.
+	// block 되기 때문에 wait_on_lock은 하나만 생김.
 	struct thread *t = thread_current();
 	if (lock->holder != NULL)
 	{
 		// donators에 추가
-
+		//wait_on_lock list가 아님
 		t->wait_on_lock = lock;
+		//list_insert_ordered(&t->donators, &t->d_elem, cmp_dpriority, NULL);
 		list_insert_ordered(&lock->holder->donators, &t->d_elem, cmp_dpriority, NULL);
 		priority_donate(lock);
 	}

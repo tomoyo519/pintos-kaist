@@ -150,6 +150,7 @@ timer_print_stats (void) {
 }
 
 /* Timer interrupt handler. */
+// 매 틱마다
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;

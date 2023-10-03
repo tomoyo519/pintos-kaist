@@ -7,7 +7,8 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
-
+// 유저 프로세스가 일부 커널 기능에 접근하려고 할때마다 시스템 콜이 호출됨.
+// 시스템 콜 핸들러의 기본 구조
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 

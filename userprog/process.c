@@ -21,7 +21,7 @@
 #ifdef VM
 #include "vm/vm.h"
 #endif
-
+// ELF 바이너리들을 로드하고 프로세스를 실행함.
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
